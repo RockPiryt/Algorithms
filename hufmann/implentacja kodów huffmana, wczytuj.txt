@@ -1,0 +1,28 @@
+implentacja kodów huffmana, wczytuje dane z pliku txt, zliczam wystąpienia liter (alfabet polski, spacja jest liczona jako znak), trzeba zrobić kolejke piorytetowa, zapisanie do pliku (w pliku ma być nagłówek jako słownik z tłumaczeniem, oraz binarnie zapisany cały tekst z wcytanego pliku txt
+
+wykonać sprawdzenie dla długiego tekstu (np. lorem ipsum) czy zaszła kompresja względów zapisu pełnego gdzeie każdy znak jako 8 bitów (0 tez ma 8 bitów)
+
+
+gotowiec na drzewo może być
+
+deszyfrowanie pliku z binarnymi znakami
+
+maja być 2 funkcje (szyfrujaca i deszyfrująca)
+
+plik.tx-> zaszyfrowany_plik.txt->deszyfrowany_plik.txt == plik.txt
+
+
+wrzucić na repo
+
+Punktacja
+wczytywnaie plików + liczenie znaków 5pkt
+własna kolejka(kopiec) 5pkt
+tworzenie drzewa + kody zgodnie z zapisem jak na zajęciach 5 pkt
+zapis do pliku (ma mieć mniejszy rozmiar) 5pkt
+dekodowanie 5 pkt
+
+12,5 pkt  żeby zaliczyć
+
+w pliku ma być 2x oryginalny tekst żeby deszyfrowany plik w którym jest nagłówek i 1xtekst nie był większy
+
+
