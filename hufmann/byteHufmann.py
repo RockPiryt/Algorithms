@@ -84,14 +84,78 @@ print("Nowy kopiec po while")
 print(heap[0][1])
 print(f"długość kopca {len(heap)}")
 
+#-------------------------------------------------------------------------------
+# _, root = heappop(heap)
 
-_, root = heappop(heap)
+# createCodes(root, '')
+# print(codeMap)
+# print("\n")
 
-createCodes(root, '')
-print(codeMap)
+
+# tree=createTreeByte(root)
+# print("Drzewo hufmana zapisane w bytach")
+# print(tree)
+
+# out = open('output.pk', 'wb')
+# #Najpierw zapisujemy długość drzewa (w bajtach) jako liczbę 4-bajtową
+# out.write(len(tree).to_bytes(4, 'little'))
+# out.write(tree)
+
+
+# byte = 0
+# packed = 0
+
+# for b in memory: 
+#     code = codeMap[b]
+#     for bit in code:
+#         if packed == 0:
+#             out.write(byte)
+#             byte = 0
+#             packed = 0
+#         if bit == '1':
+#             byte |= 1
+#         byte <<=1
+#         packed <<=1
+
+# if packed < 8:
+#     out.write(byte)
+
+#---------------------------------------------------------------------------------------------------------
+_, root = heappop(heap)  # Pobierz korzeń drzewa Huffmana z kopca
+
+createCodes(root, '')  # Utwórz mapę kodów Huffmana
+print("Mapa kodów Huffmana:", codeMap)
 print("\n")
 
-
-tree=createTreeByte(root)
-print("Drzewo hufmana zapisane w bytach")
+# Utworzenie drzewa w formacie bajtowym
+tree = createTreeByte(root)
+print("Drzewo Huffmana zapisane w bajtach")
 print(tree)
+
+# Otwórz plik do zapisu
+with open('output.bin', 'wb') as out:
+    # Zapisz długość drzewa (4 bajty, little-endian)
+    out.write(len(tree).to_bytes(4, 'little'))
+    # Zapisz samo drzewo w bajtach
+    out.write(tree)
+
+    # ---------------------Kodowanie danych na podstawie mapy kodów Huffmana
+    byte = 0      # Aktualny bajt w trakcie budowy
+    packed = 0    # Liczba bitów w bieżącym bajcie
+
+    for b in memory:  # Iteracja po danych wejściowych
+        code = codeMap[b]  # Pobierz kod binarny dla bajtu
+        for bit in code:  # Przejdź przez każdy bit kodu
+            byte = (byte << 1) | int(bit)  # Przesuń bajt w lewo i dodaj bit
+            packed += 1  # Zwiększ licznik zapisanych bitów
+
+            # Jeśli bajt jest pełny, zapisz go do pliku
+            if packed == 8:
+                out.write(byte.to_bytes(1, 'big'))
+                byte = 0
+                packed = 0
+
+    # Zapisz ostatni niepełny bajt (jeśli istnieje)
+    if packed > 0:
+        byte = byte << (8 - packed)  # Uzupełnij pozostałe bity zerami
+        out.write(byte.to_bytes(1, 'big'))
