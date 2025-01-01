@@ -125,7 +125,7 @@ def save_text_to_file(file_name):
         print(f"Wystąpił błąd podczas zapisu do pliku: {e}")
 
 
-#-------------------------------------------------------odczytanie pliku i częstotliowości znaków
+#-------------------------------------------------------odczytanie pliku 
 def count_letters_in_file(file_path):
     try:
         # Otwieranie pliku i odczyt jego zawartości
@@ -149,36 +149,34 @@ def count_letters_in_file(file_path):
         print(f"Wystąpił błąd: {e}")
         return None
     
+def read_file(file_path):
+    try:
+        # Otwieranie pliku i odczyt jego zawartości
+        with open(file_path, 'r', encoding='utf-8') as file:
+            str_text = file.read()
+            return str_text
+
+    except FileNotFoundError:
+        print(f"Błąd: Plik {file_path} nie został znaleziony.")
+        return None
+    except Exception as e:
+        print(f"Wystąpił błąd: {e}")
+        return None  
+    
+#------------------------------------------------------zliczenie częstotliwości znaków
+def create_frequency_map(str_text):
+
+        # Tworzenie mapy częstotliwości
+        frequency_map = {}
+        for letter in str_text:
+            if letter.isalpha():  # Uwzględniamy tylko litery
+                if letter not in frequency_map:
+                    frequency_map[letter] = 1
+                else:
+                    frequency_map[letter] += 1
+        return frequency_map
+    
 #-------------------------------------------Utworzenie drzewa Huffmana
-def generate_tree(frequency_map):
-    keySet = frequency_map.keys()
-    piorityQ = []
-
-    #Tworzenie węzłów: Każda litera z mapy częstotliwości jest zamieniana na węzeł drzewa Huffmana
-    for letter in keySet:
-        node = HuffmanNode(frequency_map[letter], letter, None, None)
-        piorityQ.append(node)
-        #sortowanie kolejki względem freqency rosnąco
-    piorityQ = sorted(piorityQ, key = lambda x:x.freq)
-    print("Początkowa kolejka która użyjemy do zbudowania drzewa Huffmana:")
-    print([(node.freq, node.data) for node in piorityQ])
-    
-    # Po przygotowaniu kolejki algorytm zaczyna budować drzewo Huffmana, łącząc węzły o najmniejszych częstotliwościach.
-    while len(piorityQ) > 1:
-        first = piorityQ.pop(0)
-        second = piorityQ.pop(0)
-        merge_node = HuffmanNode(first.freq + second.freq, '-', first, second)
-
-        #Nowo utworzony węzeł jest dodawany z powrotem do kolejki i kolejka jest ponownie sortowana.
-        piorityQ.append(merge_node)
-        piorityQ = sorted(piorityQ, key = lambda x:x.freq)
-
-        # Debugowanie: pokaż stan kolejki po każdym merge
-        print("Stan kolejki po scaleniu:")
-        print([(node.freq, node.data) for node in piorityQ])
-    
-    #zwracam ostatni element, czyli korzeń
-    return piorityQ.pop(0)
 
 def generate_tree_with_heap(frequency_map):
     # Tworzenie kolejki priorytetowej na podstawie klasy PiorityQueue
@@ -189,13 +187,13 @@ def generate_tree_with_heap(frequency_map):
         node = HuffmanNode(freq, letter, None, None)
         priority_queue.insertHeap((freq, node))
 
-    print("Początkowa kolejka, którą użyjemy do zbudowania drzewa Huffmana:")
+    print("Początkowa kolejka piorytetowa, którą użyjemy do zbudowania drzewa Huffmana:")
     priority_queue.printHeap()
 
     # Po przygotowaniu kolejki algorytm zaczyna budować drzewo Huffmana, łącząc węzły o najmniejszych częstotliwościach
     while priority_queue.size > 1:
         # Usunięcie dwóch najmniejszych elementów
-        first = priority_queue.removeFromHeap()[1]  # Pobierz węzeł
+        first = priority_queue.removeFromHeap()[1]  
         second = priority_queue.removeFromHeap()[1]
 
         # Tworzenie nowego węzła (merge_node)
@@ -204,8 +202,7 @@ def generate_tree_with_heap(frequency_map):
         # Dodanie nowego węzła z powrotem do kolejki
         priority_queue.insertHeap((merge_node.freq, merge_node))
 
-        # Debugowanie: pokaż stan kolejki po każdym scaleniu
-        print("Stan kolejki po scaleniu:")
+        print("Stan kolejki piorytetowej po scaleniu:")
         priority_queue.printHeap()
 
     # Zwracam korzeń drzewa Huffmana
@@ -231,18 +228,20 @@ def set_binary_code_iterative(node):
             if current.left:
                 stack.append((current.left, code + '0'))
 
-def create_compressed_file(original_file_path , compressed_file_path):
-    frequency_map = count_letters_in_file(original_file_path)
-    print(f"Częstotliwość występowania znaków z literami: {frequency_map}")
 
-    # Utworzenie drzewa Huffmana na podstawie frequency_map
-    root = generate_tree_with_heap(frequency_map)
-
-    #  Utworzenie słownika kodów binarnych dla każdego znaku z tekstu
-    set_binary_code_iterative(root)
-    sorted_binary_codes = dict(sorted(binary_codes.items(), key=lambda x: ord(x[0])))
-    print(f"Słownik kodów binarnych: {sorted_binary_codes}")
-
+def compress_to_text(input_file, output_file, code_map):
+    # Odczytanie oryginalnego tekstu
+    with open(input_file, 'r', encoding='utf-8') as file:
+        original_text = file.read()
+    
+    # Kodowanie danych przy użyciu kodów Huffmana
+    compressed_text = ''.join(code_map[char] for char in original_text if char.isalpha())
+    
+    # Zapis skompresowanego tekstu do pliku .txt
+    with open(output_file, 'w', encoding='utf-8') as compressed_file:
+        compressed_file.write(compressed_text)
+    
+    print(f"Tekst zapisany stosując kody huffmana  w pliku: {output_file}")
 
 def decompress_file(compressed_file_path, decompressed_file_path):
     with open(compressed_file_path, 'rb') as compressed_file:
@@ -272,18 +271,34 @@ def decompress_file(compressed_file_path, decompressed_file_path):
     
     print(f"Dekompresowany plik zapisano jako: {decompressed_file_path}")
 
-   
+
+
     
 if __name__ == "__main__":   
     original_file_path = '1original_text.txt'
-    compressed_file_path = '2compressed_text.txt'
-    decompressed_file_path = '3decompressed_text.txt'
+    string_codes_file_path = '2string_codes_text.txt'
+    compressed_file_path = '3compressed_text.txt'
+    decompressed_file_path = '4decompressed_text.txt'
 
-    #zapisanie tekstu do pliku txt
+    #zapisanie pobranego tekstu do pliku txt
     # save_text_to_file(original_file_path)
 
-    # Tworzenie skompresowanego pliku
-    create_compressed_file(original_file_path , compressed_file_path)
+    str_text= read_file(original_file_path)
+    print(f"Odczytany tekst: {str_text}")
+    freq_map=create_frequency_map(str_text)
+    print(f"Częstotliwość występowania znaków z literami: {freq_map}")
+
+    # Utworzenie drzewa Huffmana na podstawie frequency_map
+    root = generate_tree_with_heap(freq_map)
+
+    # Tworzenie słownika kodów Huffmana
+    set_binary_code_iterative(root)
+    code_map = dict(sorted(binary_codes.items(), key=lambda x: ord(x[0])))
+    print(f"Słownik kodów binarnych: {code_map}")
+
+
+    # Kompresuj i zapisz wynik do pliku tekstowego
+    compress_to_text(original_file_path, string_codes_file_path, code_map)
 
     # Dekompresja pliku
     # decompress_file(compressed_file_path, decompressed_file_path)
