@@ -1,3 +1,4 @@
+import os
 import pickle  # Do serializacji słownika binary_codes
 global binary_codes
 binary_codes ={}
@@ -126,29 +127,6 @@ def save_text_to_file(file_name):
 
 
 #-------------------------------------------------------odczytanie pliku 
-def count_letters_in_file(file_path):
-    try:
-        # Otwieranie pliku i odczyt jego zawartości
-        with open(file_path, 'r', encoding='utf-8') as file:
-            str_text = file.read()
-
-        # Tworzenie mapy częstotliwości
-        frequency_map = {}
-        for letter in str_text:
-            if letter.isalpha():  # Uwzględniamy tylko litery
-                if letter not in frequency_map:
-                    frequency_map[letter] = 1
-                else:
-                    frequency_map[letter] += 1
-        return frequency_map
-
-    except FileNotFoundError:
-        print(f"Błąd: Plik {file_path} nie został znaleziony.")
-        return None
-    except Exception as e:
-        print(f"Wystąpił błąd: {e}")
-        return None
-    
 def read_file(file_path):
     try:
         # Otwieranie pliku i odczyt jego zawartości
@@ -177,7 +155,6 @@ def create_frequency_map(str_text):
         return frequency_map
     
 #-------------------------------------------Utworzenie drzewa Huffmana
-
 def generate_tree_with_heap(frequency_map):
     # Tworzenie kolejki priorytetowej na podstawie klasy PiorityQueue
     priority_queue = PiorityQueue(len(frequency_map))
@@ -208,12 +185,12 @@ def generate_tree_with_heap(frequency_map):
     # Zwracam korzeń drzewa Huffmana
     return priority_queue.removeFromHeap()[1]
 
-
+# Utworzenie kodów binarnych dla każdego znaku
 def set_binary_code_iterative(node):
     if node is None:
         return
     
-    stack = [(node, '')]  # Stos zawiera pary (węzeł, kod_binarny)
+    stack = [(node, '')]  
     
     while stack:
         current, code = stack.pop()
@@ -229,7 +206,66 @@ def set_binary_code_iterative(node):
                 stack.append((current.left, code + '0'))
 
 
-def compress_to_text(input_file, output_file, code_map):
+# Utworzenie drzewa w wersji bytowej
+def createTreeByteIterative(root):
+    if root is None:
+        return b''
+
+    result = b''
+    stack = [(root, False)]  
+
+    while stack:
+        node, visited = stack.pop()
+
+        if node.left is None and node.right is None:
+            # Węzeł liścia: dodaj '0' i wartość znaku
+            result += b'0' + node.data.encode('utf-8')
+        else:
+            if visited:
+                # Węzeł wewnętrzny po odwiedzeniu dzieci: dodaj '1'
+                result += b'1'
+            else:
+                # Węzeł wewnętrzny przed odwiedzeniem dzieci: dodaj ponownie na stos jako odwiedzony
+                stack.append((node, True))
+                if node.right:
+                    stack.append((node.right, False))
+                if node.left:
+                    stack.append((node.left, False))
+
+    return result
+
+def write_compressed_data(output_file, tree_length, tree_bytes, code_map, data):
+
+    with open(output_file, 'wb') as out:
+        # Write the length of the tree (4 bytes, little-endian)
+        out.write(tree_length.to_bytes(4, 'little'))
+        # Write the Huffman tree bytes
+        out.write(tree_bytes)
+
+        # Initialize variables for byte construction
+        current_byte = 0
+        bits_filled = 0
+
+        # Iterate over the input data
+        for byte in data:
+            code = code_map[byte]  # Retrieve the binary code for the byte
+            for bit in code:
+                # Shift the current byte left and add the new bit
+                current_byte = (current_byte << 1) | int(bit)
+                bits_filled += 1
+
+                # If the byte is full (8 bits), write it to the file
+                if bits_filled == 8:
+                    out.write(current_byte.to_bytes(1, 'big'))
+                    current_byte = 0
+                    bits_filled = 0
+
+        # Write any remaining bits, padding with zeros if necessary
+        if bits_filled > 0:
+            current_byte <<= (8 - bits_filled)  # Pad the remaining bits with zeros
+            out.write(current_byte.to_bytes(1, 'big'))
+
+def textZeroOne(input_file, output_file, code_map):
     # Odczytanie oryginalnego tekstu
     with open(input_file, 'r', encoding='utf-8') as file:
         original_text = file.read()
@@ -242,7 +278,6 @@ def compress_to_text(input_file, output_file, code_map):
         compressed_file.write(compressed_text)
     
     print(f"Tekst zapisany stosując kody huffmana  w pliku: {output_file}")
-
 def decompress_file(compressed_file_path, decompressed_file_path):
     with open(compressed_file_path, 'rb') as compressed_file:
         # Odczytanie nagłówka (słownika binary_codes)
@@ -273,6 +308,46 @@ def decompress_file(compressed_file_path, decompressed_file_path):
 
 
 
+def compare_files(original_file_path, compressed_file_path):
+    try:
+        # Odczyt oryginalnego pliku tekstowego
+        with open(original_file_path, 'r', encoding='utf-8') as original_file:
+            original_content = original_file.read()
+
+        # Podwojenie zawartości oryginalnego pliku
+        doubled_content = original_content * 2
+
+        # Zapis podwojonej zawartości do tymczasowego pliku
+        temp_file_path = 'temp_doubled_file.txt'
+        with open(temp_file_path, 'w', encoding='utf-8') as temp_file:
+            temp_file.write(doubled_content)
+
+        # Pobranie rozmiarów plików
+        original_size = os.path.getsize(temp_file_path)
+        compressed_size = os.path.getsize(compressed_file_path)
+
+        # Porównanie rozmiarów plików
+        print(f"Rozmiar podwojonego pliku oryginalnego: {original_size} bajtów")
+        print(f"Rozmiar skompresowanego pliku binarnego: {compressed_size} bajtów")
+
+        if original_size > compressed_size:
+            print("Podwojony plik oryginalny jest większy niż skompresowany plik binarny.")
+        elif original_size < compressed_size:
+            print("Skompresowany plik binarny jest większy niż podwojony plik oryginalny.")
+        else:
+            print("Oba pliki mają ten sam rozmiar.")
+
+        # Usunięcie tymczasowego pliku
+        os.remove(temp_file_path)
+
+    except FileNotFoundError as e:
+        print(f"Błąd: {e}")
+    except Exception as e:
+        print(f"Wystąpił błąd: {e}")
+
+# Przykładowe użycie funkcji
+compare_files('original_text.txt', 'compressed_file.bin')
+  
     
 if __name__ == "__main__":   
     original_file_path = '1original_text.txt'
@@ -297,8 +372,15 @@ if __name__ == "__main__":
     print(f"Słownik kodów binarnych: {code_map}")
 
 
-    # Kompresuj i zapisz wynik do pliku tekstowego
-    compress_to_text(original_file_path, string_codes_file_path, code_map)
+    # # Kompresuj i zapisz wynik do pliku tekstowego
+    # textZeroOne(original_file_path, string_codes_file_path, code_map)
+
+
+    tree_bytes = createTreeByteIterative(root)
+    print(f"Drzewo Huffmana zapisane w bajtach {tree_bytes}")
+    tree_length = len(tree_bytes)
+
+    write_compressed_data(compressed_file_path, tree_length, tree_bytes, code_map, str_text)
 
     # Dekompresja pliku
     # decompress_file(compressed_file_path, decompressed_file_path)

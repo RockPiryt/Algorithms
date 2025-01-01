@@ -28,9 +28,37 @@ class Node:
 
 
 def createTreeByte(root):
-    if root.isLeaf:
+    if not root.left and not root.right:
+    # if root.isLeaf:
         return b'0' + root.value.to_bytes(1, 'little')
     return createTreeByte(root.left) + createTreeByte(root.right) +b'1'
+
+def createTreeByteIterative(root):
+    if root is None:
+        return b''
+
+    stack = [(root, False)]
+    result = b''
+
+    while stack:
+        node, visited = stack.pop()
+
+        if node.left is None and node.right is None:
+            # Leaf node: append '0' and the node's value
+            result += b'0' + node.value.to_bytes(1, 'little')
+        elif visited:
+            # Internal node after visiting children: append '1'
+            result += b'1'
+        else:
+            # Post-order traversal: process children before the node itself
+            stack.append((node, True))  # Mark the node as visited
+            if node.right:
+                stack.append((node.right, False))
+            if node.left:
+                stack.append((node.left, False))
+
+    return result
+
 
 #---------------------------------------------------------------------Funkcja do tworzenia kodów
 codeMap = {}     
@@ -128,7 +156,8 @@ print("Mapa kodów Huffmana:", codeMap)
 print("\n")
 
 # Utworzenie drzewa w formacie bajtowym
-tree = createTreeByte(root)
+# tree = createTreeByte(root)
+tree = createTreeByteIterative(root)
 print("Drzewo Huffmana zapisane w bajtach")
 print(tree)
 
