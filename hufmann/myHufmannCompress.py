@@ -234,38 +234,139 @@ def createTreeByteIterative(root):
 
     return result
 
-def write_compressed_data(output_file, tree_length, tree_bytes, code_map, data):
+#---------------------------Zmiana tekstu na kod zerojedynkowy stosując kody Huffmana
+def create_encoded_text(str_text, code_map):
+    encodedText = ""
 
-    with open(output_file, 'wb') as out:
-        # Write the length of the tree (4 bytes, little-endian)
+    for character in str_text:
+        encodedText += code_map[character]
+    return encodedText
+
+
+def compress_and_write(compressed_file_path, tree_length, tree_bytes, code_map, str_text):
+
+    with open(compressed_file_path, 'wb') as out:
+        # Zapisz wielkości drzewa
         out.write(tree_length.to_bytes(4, 'little'))
-        # Write the Huffman tree bytes
+        # Zapisanie drzewa Huffmana w wersji bajtowej
         out.write(tree_bytes)
 
-        # Initialize variables for byte construction
+        # ---------------------Kodowanie danych na podstawie mapy kodów Huffmana
         current_byte = 0
-        bits_filled = 0
+        packed = 0
 
         # Iterate over the input data
-        for byte in data:
-            code = code_map[byte]  # Retrieve the binary code for the byte
-            for bit in code:
+        for byte in str_text:
+            code = code_map[byte]  # Pobranie kodu binarne dla bajtu
+            for bit in code:  # Przejścieprzez każdy bit kodu
                 # Shift the current byte left and add the new bit
                 current_byte = (current_byte << 1) | int(bit)
-                bits_filled += 1
+                packed += 1
 
-                # If the byte is full (8 bits), write it to the file
-                if bits_filled == 8:
+                # Jeśli bajt jest pełny (8 bitów), zapisz go do pliku
+                if packed == 8:
                     out.write(current_byte.to_bytes(1, 'big'))
                     current_byte = 0
-                    bits_filled = 0
+                    packed = 0
 
-        # Write any remaining bits, padding with zeros if necessary
-        if bits_filled > 0:
-            current_byte <<= (8 - bits_filled)  # Pad the remaining bits with zeros
+        # Zapisz ostatni niepełny bajt (jeśli istnieje)
+        if packed > 0:
+            current_byte <<= (8 - packed)   # Uzupełnij pozostałe bity zerami
             out.write(current_byte.to_bytes(1, 'big'))
 
-def textZeroOne(input_file, output_file, code_map):
+def save_compressed_data(compressed_file_path, code_map, text_bytes):
+    with open(compressed_file_path, 'wb') as output:
+        output.write(code_map, text_bytes)
+
+
+
+# Konwertuje zakodowany tekst na dane bajtowe na podstawie mapy kodów Huffmana.
+def bits_to_byte2(code_map, encoded_text):
+
+    byte_array = bytearray()
+    current_byte = 0
+    packed = 0
+
+    # Iteracja po danych wejściowych
+    for char in encoded_text:
+        code = code_map[char]  # Pobranie kodu binarnego dla znaku
+        for bit in code:  # Przejście przez każdy bit kodu
+            # Przesunięcie bieżącego bajtu w lewo i dodanie nowego bitu
+            current_byte = (current_byte << 1) | int(bit)
+            packed += 1
+
+            # Jeśli bajt jest pełny (8 bitów), dodaj go do byte_array
+            if packed == 8:
+                byte_array.append(current_byte)
+                # Zeruję liczniki
+                current_byte = 0
+                packed = 0
+
+    # Dodanie ostatniego niepełnego bajtu (jeśli istnieje)
+    if packed > 0:
+        current_byte <<= (8 - packed)  # Uzupełnij pozostałe bity zerami
+        byte_array.append(current_byte)
+
+    # Zwraca obiekt bytes reprezentujący skompresowane dane
+    return bytes(byte_array)
+
+
+def bits_to_byte(encoded_text):
+    byte_array = bytearray()
+    current_byte = 0
+    packed = 0
+
+    # Iterate over each bit in the encoded text
+    for bit in encoded_text:
+        # Shift the current byte left and add the new bit
+        current_byte = (current_byte << 1) | int(bit)
+        packed += 1
+
+        # If we've packed 8 bits, append the byte to the array
+        if packed == 8:
+            byte_array.append(current_byte)
+            current_byte = 0
+            packed = 0
+
+    # If there are remaining bits, pad with zeros and append
+    if packed > 0:
+        current_byte <<= (8 - packed)  # Pad the remaining bits with zeros
+        byte_array.append(current_byte)
+
+    return bytes(byte_array)
+
+
+# funkcja dodaje padding do encoded_text (teskt zapisany zerojedynkowo) żeby mógł być podzielny przez 8
+def pad_encoded_text(encoded_text):
+    #określenie potrzbnego wypełeninia 0 gdy teskt nie jest podzielny przez 8
+    extra_padding = 8 - len(encoded_text) % 8
+    if extra_padding == 8:
+        extra_padding = 0
+    # Dodanie informacji o do oełnieniu jako 8-bit string
+    padded_info = f"{extra_padding:08b}"
+    padded_encoded_text = encoded_text + '0' * extra_padding
+    return padded_info + padded_encoded_text
+
+# funkcja dzieląca tekst zapisany bitowo na bajty
+def create_byte_array(padded_encoded_text):
+    #sprawdzenie czy padded encoded text jest podzielny prze 8
+    if len(padded_encoded_text) % 8 != 0:
+        raise ValueError("Padded encoded text length is not a multiple of 8.")
+    #podział bitów na bajty
+    byte_array = bytearray()
+    for i in range(0, len(padded_encoded_text), 8):
+        byte = padded_encoded_text[i:i+8]
+        byte_array.append(int(byte, 2))
+    return bytes(byte_array)
+
+# funkcja kompresująca 
+def compress(encoded_text):
+    # Dodanie dopelenienia żeby był podzielny przez 8
+    padded_encoded_text = pad_encoded_text(encoded_text)
+    # Podział bitów na bajty
+    return create_byte_array(padded_encoded_text)
+
+def saveTextZeroOne(input_file, output_file, code_map):
     # Odczytanie oryginalnego tekstu
     with open(input_file, 'r', encoding='utf-8') as file:
         original_text = file.read()
@@ -278,6 +379,9 @@ def textZeroOne(input_file, output_file, code_map):
         compressed_file.write(compressed_text)
     
     print(f"Tekst zapisany stosując kody huffmana  w pliku: {output_file}")
+    return compressed_text
+
+# TODO
 def decompress_file(compressed_file_path, decompressed_file_path):
     with open(compressed_file_path, 'rb') as compressed_file:
         # Odczytanie nagłówka (słownika binary_codes)
@@ -306,8 +410,7 @@ def decompress_file(compressed_file_path, decompressed_file_path):
     
     print(f"Dekompresowany plik zapisano jako: {decompressed_file_path}")
 
-
-
+# TODO
 def compare_files(original_file_path, compressed_file_path):
     try:
         # Odczyt oryginalnego pliku tekstowego
@@ -345,14 +448,12 @@ def compare_files(original_file_path, compressed_file_path):
     except Exception as e:
         print(f"Wystąpił błąd: {e}")
 
-# Przykładowe użycie funkcji
-compare_files('original_text.txt', 'compressed_file.bin')
-  
+
     
 if __name__ == "__main__":   
     original_file_path = '1original_text.txt'
     string_codes_file_path = '2string_codes_text.txt'
-    compressed_file_path = '3compressed_text.txt'
+    compressed_file_path = '3compressed_text.bin'
     decompressed_file_path = '4decompressed_text.txt'
 
     #zapisanie pobranego tekstu do pliku txt
@@ -371,18 +472,36 @@ if __name__ == "__main__":
     code_map = dict(sorted(binary_codes.items(), key=lambda x: ord(x[0])))
     print(f"Słownik kodów binarnych: {code_map}")
 
+    reverse_code_map = {v: k for k, v in code_map.items()}
+    print(f"Słownik kodów binarnych służący do dekompresji: {code_map}")
 
-    # # Kompresuj i zapisz wynik do pliku tekstowego
-    # textZeroOne(original_file_path, string_codes_file_path, code_map)
+    # Oryginalny tekst przekształcony na zerojedynkowy stosując kody Huffmana  
+    encoded_text = create_encoded_text(str_text, code_map)
+    print(f"Oryginalny tekst przekształcony na zerojedynkowy stosując kody Huffmana: {encoded_text}")
+
+    # -----------------------------------------------------Główna funkcja kompresująca
+    # Dodanie padding do tekstu oraz podzial bitów na bajty
+    compressed_data = compress(encoded_text)
+
+    # Zapis wybranych danych do pliku binarnego
+    save_compressed_data(compressed_file_path, code_map, compressed_data)
+
+    # # Konwertuje zakodowany tekst (zerojedynkowy) na dane bajtowe na podstawie mapy kodów Huffmana.
+    # text_bytes = bits_to_byte(code_map, encoded_text)
+    #-----------------------------------------------------------
+    # tree_bytes = createTreeByteIterative(root)
+    # print(f"Drzewo Huffmana zapisane w bajtach {tree_bytes}")
+    # tree_length = len(tree_bytes)
+    
+    #zeroOne = saveTextZeroOne(original_file_path, string_codes_file_path, code_map)
+    #print(f"Oryginalny tekst przekształcony na zerojedynkowy stosując kody Huffmana - wersja ZeroOne: {zeroOne}")
 
 
-    tree_bytes = createTreeByteIterative(root)
-    print(f"Drzewo Huffmana zapisane w bajtach {tree_bytes}")
-    tree_length = len(tree_bytes)
-
-    write_compressed_data(compressed_file_path, tree_length, tree_bytes, code_map, str_text)
+    # compress_and_write(compressed_file_path, tree_length, tree_bytes, code_map, str_text)
 
     # Dekompresja pliku
     # decompress_file(compressed_file_path, decompressed_file_path)
 
-    
+    # Porównanie wielkości plików
+    # compare_files(original_file_path, compressed_file_path)
+
